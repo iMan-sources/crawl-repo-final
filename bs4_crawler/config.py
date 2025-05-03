@@ -29,8 +29,8 @@ TARGET_REPO_RANK = 5000
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': '',  # Set your MySQL password here
-    'database': 'github_crawler'
+    'password': 'abcde12345-',  # Set your MySQL password here
+    'database': 'github_data'
 }
 
 # Request headers

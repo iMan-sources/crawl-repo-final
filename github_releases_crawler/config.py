@@ -34,8 +34,8 @@ RESULTS_FILE = OUTPUT_DIR / 'github_releases.json'
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': '',  # Set your MySQL password here
-    'database': 'github_crawler'
+    'password': 'abcde12345-',  # Set your MySQL password here
+    'database': 'github_data'
 }
 
 # Request headers

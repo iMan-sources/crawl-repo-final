@@ -1,14 +1,9 @@
 import logging
-import json
 import time
-from pathlib import Path
-from typing import Dict, List, Optional
-from multiprocessing import Pool
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from typing import Dict, List, Any
 from tqdm import tqdm
 import pandas as pd
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin
-import re
 import requests
 
 from .config import (
@@ -36,8 +31,17 @@ class GitHubCrawler:
         """
         try:
             url = f"{BASE_URL}?page={page}"
-            response = requests.get(url)
-            response.raise_for_status()
+            # retry
+            for attempt in range(3):
+                try:
+                    response = requests.get(url, timeout=10)
+                    response.raise_for_status()
+                    break
+                except requests.exceptions.RequestException as e:
+                    if attempt == 2:
+                        logger.error(f"Failed after retries: {url}")
+                        return []
+                    time.sleep(2)
             
             # Parse repositories from page
             repos = RepoParser.parse_page(response.text)
@@ -60,7 +64,7 @@ class GitHubCrawler:
             logger.error(f"Error processing page {page}: {str(e)}")
             return []
         
-    def run(self) -> List[Dict]:
+    def run(self) -> list[Any] :
         """Run the crawler
         
         Returns:
@@ -77,31 +81,23 @@ class GitHubCrawler:
             logger.info(f"Found target page {target_page}. Now crawling all pages from 1 to 50...")
             
             # Create a list of all pages to crawl (1 to 50)
-            pages_to_crawl = list(range(1, 51))
-            
-            # Process pages with worker pool
             all_repos = []
-            with Pool(processes=NUM_WORKERS) as pool:
+            pages_to_crawl = list(range(1, 51))
+
+            with ProcessPoolExecutor(max_workers=NUM_WORKERS) as executor:
+                future_to_page = {executor.submit(self._worker_task, page): page for page in pages_to_crawl}
                 with tqdm(total=len(pages_to_crawl), desc="Processing pages") as pbar:
-                    for repos in pool.imap_unordered(self._worker_task, pages_to_crawl):
-                        all_repos.extend(repos)
+                    for future in as_completed(future_to_page):
+                        page = future_to_page[future]
+                        try:
+                            result = future.result()
+                            all_repos.extend(result)
+                        except Exception as e:
+                            logger.error(f"Error on page {page}: {e}")
                         pbar.update()
-            
-            # Sort repositories by rank
-            all_repos.sort(key=lambda x: x['rank'])
-            
-            # Save results to JSON for compatibility with existing code
-            logger.info(f"Saving {len(all_repos)} repositories to {RESULTS_FILE}")
-            with open(RESULTS_FILE, 'w', encoding='utf-8') as f:
-                json.dump(all_repos, f, ensure_ascii=False, indent=2)
-            
-            # Save as CSV
-            logger.info(f"Saving repositories to {CSV_FILE}")
-            df = pd.DataFrame(all_repos)
-            df.to_csv(CSV_FILE, index=False)
-            
-            return all_repos
-            
+                all_repos.sort(key=lambda x: x['rank'])
+                return all_repos
+
         except Exception as e:
             logger.error(f"Error during crawling: {str(e)}")
             return []

@@ -7,4 +7,10 @@ pandas>=2.2.1
 fake-useragent==1.4.0
 retry>=0.9.2
 mysql-connector-python>=8.3.0
-python-dotenv>=1.0.0 
+python-dotenv>=1.0.0
+beautifulsoup4==4.12.3
+requests==2.31.0
+tqdm==4.66.2
+pandas==2.2.0
+fake-useragent==1.4.0
+retry==0.9.2
