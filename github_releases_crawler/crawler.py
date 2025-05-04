@@ -1,12 +1,10 @@
 import logging
 import json
 import time
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from multiprocessing import Pool
 from tqdm import tqdm
 import requests
-from retry import retry
 
 from .config import (
     GITHUB_API_BASE, HEADERS, MAX_REPOS,
@@ -91,17 +89,20 @@ class GitHubReleasesCrawler:
         self.session = requests.Session()
         self.session.headers.update(HEADERS)
         self._load_repos()
-        
+
     def _load_repos(self):
         """Load repository data from JSON file"""
         try:
-            with open(INPUT_REPOS_FILE, 'r', encoding='utf-8') as f:
-                self.repos = json.load(f)
-            logger.info(f"Loaded {len(self.repos)} repositories from {INPUT_REPOS_FILE}")
+            db = DatabaseManager(**DB_CONFIG)
+            try:
+                self.repos = db.get_all_repositories()
+                logger.info(f"Loaded {len(self.repos)} repositories from database")
+            finally:
+                db.close()
         except Exception as e:
-            logger.error(f"Error loading repositories: {str(e)}")
+            logger.error(f"Error loading repositories from database: {str(e)}")
             self.repos = []
-    
+
     def _process_batch(self, batch: List[Dict]) -> List[Dict]:
         """Process a batch of repositories using multiple workers
         

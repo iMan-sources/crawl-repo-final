@@ -212,6 +212,7 @@ class DatabaseManager:
             logger.error(f"Error getting repositories: {str(e)}")
             return []
 
+
     def insert_commits(self, commits: List[Dict], repo_id: int) -> bool:
         """Insert commits for a repository
         
